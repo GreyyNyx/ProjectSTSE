@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hasil Pertandingan Sepak Bola</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f6f1;--card:#fff;--ink:#16221b;--muted:#5d6b62;--line:#d9dfd5;--green:#1f6f43;--green-d:#14492c;--amber:#f2b01e;--board:#111c16}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1712;--card:#17221b;--ink:#e8eee9;--muted:#9aa89f;--line:#2a392f;--green:#4fb67f;--green-d:#0b120e;--board:#0a100c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+header{background:var(--green-d);color:#fff;border-bottom:4px solid var(--amber)}
+header .wrap{display:flex;gap:24px;align-items:center;flex-wrap:wrap;padding-top:12px;padding-bottom:12px}
+.brand{font:700 26px "Barlow Condensed",system-ui,sans-serif;color:#fff;text-decoration:none;letter-spacing:.3px}
+nav{display:flex;gap:4px}
+nav a{color:#cfe3d6;text-decoration:none;padding:6px 12px;border-radius:6px}
+nav a.on{background:#ffffff1f;color:#fff}
+nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+main{padding-top:20px;padding-bottom:48px}
+h1{font:700 32px "Barlow Condensed",system-ui,sans-serif;margin:0 0 14px}
+h2{font-size:18px;margin:24px 0 8px}
+a{color:var(--green)}
+.muted{color:var(--muted)}
+.err{background:#fde8e6;color:#8a1c12;padding:12px 14px;border-radius:8px}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:16px}
+.filters input[name=search]{grid-column:1/-1}
+input,select,button{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+button{cursor:pointer;background:var(--green);color:#fff;border-color:var(--green)}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+button:disabled{opacity:.45;cursor:default}
+.tw{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}
+table{width:100%;border-collapse:collapse;min-width:640px}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:14px}
+tr:last-child td{border-bottom:0}
+.r{text-align:right}.c{text-align:center}
+tr.click{cursor:pointer}tr.click:hover{background:var(--bg)}
+.score{font:700 20px "Barlow Condensed",system-ui,sans-serif}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.board{background:var(--board);color:#fff;border-radius:12px;padding:28px 16px;text-align:center;border-bottom:5px solid var(--amber)}
+.board .row{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center}
+.board .team{font:700 28px "Barlow Condensed",system-ui,sans-serif}
+.board .team a{color:#fff}
+.board .pts{font:700 72px/1 "Barlow Condensed",system-ui,sans-serif;color:var(--amber);letter-spacing:2px}
+.board .res{margin-top:10px;color:#b9c9be}
+.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:16px}
+.info div,.stat{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.info b,.stat b{display:block;font-size:13px;font-weight:600;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.stat span{font:700 30px "Barlow Condensed",system-ui,sans-serif}
+.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.teams a{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;text-decoration:none;color:var(--ink)}
+.teams a:hover{border-color:var(--green)}
+@media (max-width:560px){.board .pts{font-size:52px}.board .team{font-size:22px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="#/matches">Hasil Pertandingan Sepak Bola</a>
+  <nav>
+    <a href="#/matches" data-n="matches">Pertandingan</a>
+    <a href="#/standings" data-n="standings">Klasemen</a>
+    <a href="#/teams" data-n="teams">Tim</a>
+  </nav>
+</div></header>
+<main class="wrap" id="app"></main>
+
+<script>
+const API = '/api';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'});
+
+async function get(path, params = {}) {
+  const u = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== '' && v != null) u.set(k, v);
+  const qs = u.toString();
+  const res = await fetch(API + path + (qs ? '?' + qs : ''));
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || 'Data gagal dimuat. Coba muat ulang halaman.');
+  return json;
+}
+
+function go(path, p = {}) {
+  const u = new URLSearchParams();
+  for (const [k, v] of Object.entries(p)) if (v !== '' && v != null) u.set(k, v);
+  const s = u.toString();
+  location.hash = '#' + path + (s ? '?' + s : '');
+}
+
+const cache = {};
+async function lookups() {
+  if (!cache.t) {
+    const [t, y] = await Promise.all([get('/tournaments'), get('/years')]);
+    cache.t = t.data; cache.y = y.data;
+  }
+  return cache;
+}
+
+const opts = (arr, sel, val, lab, ph) =>
+  (ph ? `<option value="">${ph}</option>` : '') +
+  arr.map((x) => `<option value="${esc(val(x))}"${String(val(x)) === String(sel) ? ' selected' : ''}>${esc(lab(x))}</option>`).join('');
+
+const teamLink = (id, n) => `<a href="#/team/${id}" onclick="event.stopPropagation()">${esc(n)}</a>`;
+
+function matchTable(rows) {
+  if (!rows.length) return '<p class="muted">Tidak ada pertandingan yang cocok. Ubah kata kunci atau filter.</p>';
+  return `<div class="tw"><table><thead><tr><th>Tanggal</th><th class="r">Tuan rumah</th><th class="c">Skor</th><th>Tamu</th><th>Turnamen</th></tr></thead><tbody>` +
+    rows.map((m) => `<tr class="click" onclick="location.hash='#/match/${m.id}'"><td>${fmtDate(m.match_date)}</td><td class="r">${teamLink(m.home_team_id, m.home_team)}</td><td class="c score">${m.home_score} - ${m.away_score}</td><td>${teamLink(m.away_team_id, m.away_team)}</td><td>${esc(m.tournament)}</td></tr>`).join('') +
+    '</tbody></table></div>';
+}
+
+function pager(r) {
+  return `<div class="pager"><button class="ghost" data-page="${r.page - 1}" ${r.page <= 1 ? 'disabled' : ''}>‹ Sebelumnya</button>` +
+    `<span class="muted">Halaman ${r.page} dari ${r.total_pages || 1} (${r.total.toLocaleString('id-ID')} data)</span>` +
+    `<button class="ghost" data-page="${r.page + 1}" ${r.page >= r.total_pages ? 'disabled' : ''}>Berikutnya ›</button></div>`;
+}
+function bindPager(path, p) {
+  document.querySelectorAll('[data-page]').forEach((b) => b.onclick = () => { go(path, {...p, page: b.dataset.page}); scrollTo(0, 0); });
+}
+
+async function matches(q) {
+  const L = await lookups();
+  const p = {search: q.get('search') || '', tournament_id: q.get('tournament_id') || '', year: q.get('year') || '', team_id: q.get('team_id') || '',
+             sort: q.get('sort') || 'date', order: q.get('order') || 'desc', page: q.get('page') || 1};
+  const sorts = [['date', 'Urut: tanggal'], ['home_team', 'Urut: tuan rumah'], ['away_team', 'Urut: tamu'], ['tournament', 'Urut: turnamen']];
+  const orders = [['desc', 'Menurun (terbaru / Z-A)'], ['asc', 'Menaik (terlama / A-Z)']];
+  $('#app').innerHTML = `<h1>Pertandingan</h1>
+    <form id="f" class="filters">
+      <input name="search" placeholder="Cari tim, turnamen, atau kota" value="${esc(p.search)}">
+<input type="hidden" name="team_id" value="${esc(p.team_id)}">
+      <select name="tournament_id" aria-label="Turnamen">${opts(L.t, p.tournament_id, (x) => x.id, (x) => x.name, 'Semua turnamen')}</select>
+      <select name="year" aria-label="Tahun">${opts(L.y, p.year, (x) => x, (x) => x, 'Semua tahun')}</select>
+      <select name="sort" aria-label="Urutkan">${opts(sorts, p.sort, (x) => x[0], (x) => x[1])}</select>
+      <select name="order" aria-label="Arah urutan">${opts(orders, p.order, (x) => x[0], (x) => x[1])}</select>
+      <button>Cari</button><button type="button" class="ghost" id="reset">Atur ulang</button>
+    </form><div id="res"><p class="muted">Memuat data…</p></div>`;
+  $('#f').onsubmit = (e) => { e.preventDefault(); go('/matches', {...Object.fromEntries(new FormData(e.target)), page: 1}); };
+  $('#reset').onclick = () => go('/matches');
+  const r = await get('/matches', {...p, limit: 20});
+  if (!$('#res')) return;
+  $('#res').innerHTML = matchTable(r.data) + (r.total ? pager(r) : '');
+  bindPager('/matches', p);
+}
+
+async function matchDetail(id) {
+  const m = await get('/matches/' + id);
+  const res = m.home_score > m.away_score ? `${esc(m.home_team)} menang` : m.home_score < m.away_score ? `${esc(m.away_team)} menang` : 'Pertandingan berakhir seri';
+  $('#app').innerHTML = `<p><a href="#/matches" onclick="if(history.length>1){history.back();return false}">‹ Kembali ke daftar</a></p>
+    <div class="board"><div class="row">
+      <div class="team"><a href="#/team/${m.home_team_id}">${esc(m.home_team)}</a></div>
+      <div class="pts">${m.home_score} - ${m.away_score}</div>
+      <div class="team"><a href="#/team/${m.away_team_id}">${esc(m.away_team)}</a></div>
+    </div><div class="res">${res}</div></div>
+    <div class="info">
+      <div><b>Turnamen</b>${esc(m.tournament)}</div>
+      <div><b>Tanggal</b>${fmtDate(m.match_date)}</div>
+      <div><b>Lokasi</b>${esc([m.city, m.country].filter(Boolean).join(', ') || '-')}</div>
+      <div><b>Jenis tempat</b>${m.neutral ? 'Netral' : 'Kandang tuan rumah'}</div>
+    </div>`;
+}
+
+async function teams(q) {
+  const p = {search: q.get('search') || '', page: q.get('page') || 1};
+  $('#app').innerHTML = `<h1>Tim</h1>
+    <form id="f" class="filters"><input name="search" placeholder="Cari nama tim" value="${esc(p.search)}"><button>Cari</button></form>
+    <div id="res"><p class="muted">Memuat data…</p></div>`;
+  $('#f').onsubmit = (e) => { e.preventDefault(); go('/teams', {search: new FormData(e.target).get('search'), page: 1}); };
+  const r = await get('/teams', {...p, limit: 30});
+  if (!$('#res')) return;
+  $('#res').innerHTML = (r.data.length ? `<div class="teams">${r.data.map((t) => `<a href="#/team/${t.id}">${esc(t.name)}</a>`).join('')}</div>` : '<p class="muted">Tim tidak ditemukan.</p>') + (r.total ? pager(r) : '');
+  bindPager('/teams', p);
+}
+
+async function teamDetail(id) {
+  const t = await get('/teams/' + id);
+  const s = t.stats;
+  const box = (l, v) => `<div class="stat"><b>${l}</b><span>${v}</span></div>`;
+  $('#app').innerHTML = `<p><a href="#/teams">‹ Semua tim</a></p><h1>${esc(t.name)}</h1>
+    <div class="stats">${box('Main', s.played)}${box('Menang', s.won)}${box('Seri', s.drawn)}${box('Kalah', s.lost)}${box('Gol', s.goals_for)}${box('Kemasukan', s.goals_against)}</div>
+    <h2>10 pertandingan terakhir</h2>${matchTable(t.recent_matches)}
+    <p><a href="#/matches?team_id=${t.id}">Lihat semua pertandingan ${esc(t.name)}</a></p>`;
+}
+
+async function standings(q) {
+  const L = await lookups();
+  const wc = L.t.find((t) => t.name === 'FIFA World Cup');
+  const tid = q.get('tournament_id') || (wc ? wc.id : L.t[0].id);
+  const year = q.get('year') || 2022;
+  $('#app').innerHTML = `<h1>Klasemen</h1>
+    <form id="f" class="filters">
+      <select name="tournament_id" aria-label="Turnamen">${opts(L.t, tid, (x) => x.id, (x) => x.name)}</select>
+      <select name="year" aria-label="Tahun">${opts(L.y, year, (x) => x, (x) => x)}</select>
+      <button>Tampilkan</button>
+    </form><div id="res"><p class="muted">Memuat data…</p></div>`;
+  $('#f').onsubmit = (e) => { e.preventDefault(); go('/standings', Object.fromEntries(new FormData(e.target))); };
+  const r = await get('/standings', {tournament_id: tid, year});
+  if (!$('#res')) return;
+  $('#res').innerHTML = !r.data.length ? '<p class="muted">Belum ada pertandingan untuk turnamen dan tahun ini. Pilih kombinasi lain.</p>' :
+    `<div class="tw"><table><thead><tr><th>#</th><th>Tim</th><th class="r">Main</th><th class="r">M</th><th class="r">S</th><th class="r">K</th><th class="r">GM</th><th class="r">GK</th><th class="r">SG</th><th class="r">Poin</th></tr></thead><tbody>` +
+    r.data.map((x) => `<tr><td>${x.position}</td><td>${teamLink(x.team_id, x.team)}</td><td class="r">${x.played}</td><td class="r">${x.won}</td><td class="r">${x.drawn}</td><td class="r">${x.lost}</td><td class="r">${x.goals_for}</td><td class="r">${x.goals_against}</td><td class="r">${x.goal_diff}</td><td class="r"><b>${x.points}</b></td></tr>`).join('') +
+    `</tbody></table></div><p class="muted">Menang 3 poin, seri 1 poin. Dihitung dari semua pertandingan turnamen pada tahun itu, termasuk fase gugur; adu penalti tidak dihitung.</p>`;
+}
+
+function route() {
+  const [path, qs] = (location.hash.slice(1) || '/matches').split('?');
+  const q = new URLSearchParams(qs || '');
+  const seg = path.split('/').filter(Boolean);
+  const active = {match: 'matches', team: 'teams'}[seg[0]] || seg[0];
+  document.querySelectorAll('nav a').forEach((a) => a.classList.toggle('on', a.dataset.n === active));
+  const view = seg[0] === 'match' ? matchDetail(seg[1]) : seg[0] === 'team' ? teamDetail(seg[1])
+    : seg[0] === 'teams' ? teams(q) : seg[0] === 'standings' ? standings(q) : matches(q);
+  view.catch((e) => { $('#app').innerHTML = `<div class="err">${esc(e.message)}</div>`; });
+}
+addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>
