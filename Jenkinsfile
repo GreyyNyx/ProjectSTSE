@@ -1,6 +1,5 @@
 pipeline {
     agent any
-
     environment {
         DB_NAME = 'footballhub_ci'
         DB_USER = 'ci_user'
@@ -10,14 +9,14 @@ pipeline {
     stages {
         stage('Validate Docker Compose') {
             steps {
-                echo 'Memeriksa konfigurasi Docker Compose...'
+                echo 'Memeriksa konfigurasi Docker Compose'
                 sh 'docker compose config -q'
             }
         }
 
         stage('Build Docker Images') {
             steps {
-                echo 'Membangun Docker image Football Hub...'
+                echo 'Membangun Docker image Football Hub'
                 sh 'docker compose build'
             }
         }
@@ -27,7 +26,6 @@ pipeline {
         success {
             echo 'Pipeline Football Hub berhasil!'
         }
-
         failure {
             echo 'Pipeline Football Hub gagal. Periksa Console Output.'
         }
